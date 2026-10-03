@@ -180,6 +180,10 @@ php artisan queue:work        # processes notification jobs
 > default `database` store (uses the `cache_locks` table) or Redis. Do not use the
 > `file` or `array` store in production.
 
+> **Timezone:** the organisation timezone is applied at boot. After changing it in
+> Settings, run `php artisan queue:restart` so queue workers and the scheduler pick
+> up the new value (web requests apply it immediately).
+
 ## Project layout
 
 ```

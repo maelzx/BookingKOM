@@ -7,7 +7,6 @@ use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Console\ServeCommand;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -44,25 +43,28 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Apply the organisation's configured timezone to the whole application.
-     * Guarded so it is a no-op before the settings table exists (install,
-     * migrations, early console boot).
+     * Apply the organisation's configured timezone to the application.
+     *
+     * Piggybacks on the cached settings, so in steady state this performs no
+     * database query (and, unlike a Schema::hasTable() guard, avoids a schema
+     * lookup on every boot). If the settings table/cache is not ready yet
+     * (install, migrations, early console boot) it silently falls back to the
+     * environment configuration and retries on the next boot.
+     *
+     * Long-lived processes (queue workers, the scheduler) resolve this once at
+     * boot; run `php artisan queue:restart` after changing the timezone.
      */
     protected function applyOrganisationTimezone(): void
     {
         try {
-            if (! Schema::hasTable('settings')) {
-                return;
-            }
-
             $timezone = Setting::get('org_timezone');
-
-            if (is_string($timezone) && in_array($timezone, timezone_identifiers_list(), true)) {
-                config(['app.timezone' => $timezone]);
-                date_default_timezone_set($timezone);
-            }
         } catch (\Throwable) {
-            // Settings are not available yet; fall back to the environment config.
+            return;
+        }
+
+        if (is_string($timezone) && in_array($timezone, timezone_identifiers_list(), true)) {
+            config(['app.timezone' => $timezone]);
+            date_default_timezone_set($timezone);
         }
     }
 }
