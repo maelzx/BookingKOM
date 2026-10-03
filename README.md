@@ -9,8 +9,9 @@ several resources at once, and the system never allows double-booking.
 
 > **AssetKOM = What do we own? BookingKOM = When can we use it?**
 >
-> BookingKOM is a sibling application to [AssetKOM](../AssetKOM) and shares its foundation,
-> conventions and visual language. An AssetKOM asset can become a bookable BookingKOM resource.
+> BookingKOM is a sibling application to [AssetKOM](https://github.com/maelzx/AssetKOM) and shares
+> its foundation, conventions and visual language. An AssetKOM asset can become a bookable
+> BookingKOM resource.
 
 ## Why BookingKOM?
 
@@ -183,6 +184,10 @@ database/
 resources/views/livewire/   dashboard, calendar, resources, bookings, approvals, reports…
 tests/              conflict, approval, permission and smoke tests
 ```
+
+## Related projects
+
+- [AssetKOM](https://github.com/maelzx/AssetKOM) — open-source asset management (the sibling app this project shares its foundation with).
 
 ## License
 
