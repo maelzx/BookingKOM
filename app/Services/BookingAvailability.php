@@ -95,7 +95,7 @@ class BookingAvailability
      *
      * @throws BookingException
      */
-    public function assertWithinRules(Resource $resource, CarbonInterface $start, CarbonInterface $end): void
+    public function assertWithinRules(Resource $resource, CarbonInterface $start, CarbonInterface $end, ?int $ignoreBookingId = null): void
     {
         if ($end->lessThanOrEqualTo($start)) {
             throw new BookingException(__('The end time must be after the start time.'));
@@ -124,6 +124,16 @@ class BookingAvailability
 
         if ($advance > 0 && Carbon::parse($start)->gt(now()->addDays($advance)->endOfDay())) {
             throw new BookingException(__('Bookings can be made at most :days days in advance.', ['days' => $advance]));
+        }
+
+        $maxPerDay = (int) $resource->rule('max_bookings_per_day', 0);
+
+        if ($maxPerDay > 0 && $this->bookingsOnDay($resource, Carbon::parse($start), $ignoreBookingId) >= $maxPerDay) {
+            throw new BookingException(__('":resource" already has the maximum of :max booking(s) on :date.', [
+                'resource' => $resource->name,
+                'max' => $maxPerDay,
+                'date' => Carbon::parse($start)->format('d M Y'),
+            ]));
         }
 
         if (! $this->withinWorkingHours($resource, $start, $end)) {

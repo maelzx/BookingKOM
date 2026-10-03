@@ -9,6 +9,7 @@ use App\Exceptions\BookingConflictException;
 use App\Exceptions\BookingException;
 use App\Models\Booking;
 use App\Models\Resource;
+use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\BookingApprovalRequired;
 use App\Notifications\BookingCancelled;
@@ -236,6 +237,18 @@ class BookingService
             throw new BookingException(__('This booking cannot be cancelled.'));
         }
 
+        $noticeHours = (int) Setting::get('cancellation_notice_hours', 0);
+
+        if (! $user->isAdmin()
+            && $noticeHours > 0
+            && $booking->status === BookingStatus::Confirmed
+            && $booking->starts_at->isFuture()
+            && $booking->starts_at->lt(now()->addHours($noticeHours))) {
+            throw new BookingException(__('Bookings must be cancelled at least :hours hours in advance.', [
+                'hours' => $noticeHours,
+            ]));
+        }
+
         return DB::transaction(function () use ($booking, $user, $reason): Booking {
             $targets = $booking->occurrences()->get()->prepend($booking)
                 ->filter(fn (Booking $item): bool => $item->status->isCancellable());
@@ -387,7 +400,7 @@ class BookingService
     protected function assertOccurrenceAvailable(Collection $resources, Carbon $start, Carbon $end, ?int $ignoreBookingId): void
     {
         foreach ($resources as $resource) {
-            $this->availability->assertWithinRules($resource, $start, $end);
+            $this->availability->assertWithinRules($resource, $start, $end, $ignoreBookingId);
             $this->availability->assertAvailable($resource, $start, $end, $ignoreBookingId);
         }
     }

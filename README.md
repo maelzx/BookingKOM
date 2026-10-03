@@ -130,7 +130,7 @@ for notifications and reminders.
 
 Organisation settings live in the **Settings** screen and the `settings` table (cached):
 
-- organisation name, timezone, date format
+- organisation name and timezone
 - working days and working hours
 - default / minimum / maximum booking duration
 - advance-booking limit and minimum notice

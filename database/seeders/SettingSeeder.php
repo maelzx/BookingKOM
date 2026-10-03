@@ -15,7 +15,6 @@ class SettingSeeder extends Seeder
         $defaults = [
             'org_name' => ['BookingKOM', 'string'],
             'org_timezone' => ['Asia/Kuala_Lumpur', 'string'],
-            'date_format' => ['d M Y', 'string'],
             'working_days' => [[1, 2, 3, 4, 5], 'array'],
             'working_hours_start' => ['08:00', 'string'],
             'working_hours_end' => ['18:00', 'string'],

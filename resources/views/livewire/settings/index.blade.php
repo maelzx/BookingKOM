@@ -11,8 +11,6 @@ new #[Layout('layouts.app')] class extends Component
 
     public string $org_timezone = 'UTC';
 
-    public string $date_format = 'd M Y';
-
     /**
      * @var array<int, int>
      */
@@ -50,7 +48,6 @@ new #[Layout('layouts.app')] class extends Component
 
         $this->org_name = (string) Setting::get('org_name', 'BookingKOM');
         $this->org_timezone = (string) Setting::get('org_timezone', config('app.timezone'));
-        $this->date_format = (string) Setting::get('date_format', 'd M Y');
         $this->working_days = array_map('intval', (array) Setting::get('working_days', [1, 2, 3, 4, 5]));
         $this->working_hours_start = (string) Setting::get('working_hours_start', '08:00');
         $this->working_hours_end = (string) Setting::get('working_hours_end', '18:00');
@@ -74,7 +71,6 @@ new #[Layout('layouts.app')] class extends Component
         $validated = $this->validate([
             'org_name' => ['required', 'string', 'max:255'],
             'org_timezone' => ['required', 'string', 'timezone'],
-            'date_format' => ['required', 'string', 'max:20'],
             'working_days' => ['required', 'array', 'min:1'],
             'working_days.*' => ['integer', 'between:1,7'],
             'working_hours_start' => ['required', 'date_format:H:i'],
@@ -131,11 +127,6 @@ new #[Layout('layouts.app')] class extends Component
                             <x-input-label for="org_timezone" :value="__('Timezone')" />
                             <x-text-input wire:model="org_timezone" id="org_timezone" type="text" class="mt-1 block w-full" placeholder="Asia/Kuala_Lumpur" />
                             <x-input-error :messages="$errors->get('org_timezone')" class="mt-2" />
-                        </div>
-                        <div>
-                            <x-input-label for="date_format" :value="__('Date format')" />
-                            <x-text-input wire:model="date_format" id="date_format" type="text" class="mt-1 block w-full" />
-                            <x-input-error :messages="$errors->get('date_format')" class="mt-2" />
                         </div>
                     </div>
                 </div>
