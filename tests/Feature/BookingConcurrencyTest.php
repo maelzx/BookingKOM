@@ -4,13 +4,13 @@ namespace Tests\Feature;
 
 use App\Enums\ApprovalMode;
 use App\Exceptions\BookingConflictException;
+use App\Exceptions\BookingException;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\BookingAvailability;
 use App\Services\BookingService;
 use App\Services\BookingStatusTransition;
 use App\Services\RecurrenceService;
-use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -45,7 +45,7 @@ class BookingConcurrencyTest extends TestCase
                 0,
             );
 
-            $this->expectException(LockTimeoutException::class);
+            $this->expectException(BookingException::class);
 
             $service->create($user, [
                 'title' => 'Should block',

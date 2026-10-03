@@ -16,6 +16,7 @@ use App\Notifications\BookingCancelled;
 use App\Notifications\BookingCreated;
 use App\Notifications\BookingDecision;
 use Closure;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -374,6 +375,12 @@ class BookingService
             }
 
             return $callback();
+        } catch (LockTimeoutException $exception) {
+            throw new BookingException(
+                __('The calendar is busy updating right now. Please try again.'),
+                0,
+                $exception,
+            );
         } finally {
             foreach (array_reverse($acquired) as $lock) {
                 optional($lock)->release();
