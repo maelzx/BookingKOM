@@ -38,6 +38,7 @@ use Spatie\Activitylog\Support\LogOptions;
     'cancel_reason',
     'completed_at',
     'no_show_at',
+    'reminded_at',
 ])]
 class Booking extends Model
 {
@@ -78,6 +79,7 @@ class Booking extends Model
             'cancelled_at' => 'datetime',
             'completed_at' => 'datetime',
             'no_show_at' => 'datetime',
+            'reminded_at' => 'datetime',
         ];
     }
 

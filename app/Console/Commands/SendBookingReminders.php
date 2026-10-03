@@ -11,7 +11,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Notification;
 
-#[Signature('bookings:remind')]
+#[Signature('bookings:remind {--force : Re-send reminders even if a booking was already reminded}')]
 #[Description('Send reminders for upcoming confirmed bookings.')]
 class SendBookingReminders extends Command
 {
@@ -29,6 +29,7 @@ class SendBookingReminders extends Command
             ->with(['resources', 'organiser', 'attendees.user'])
             ->where('status', BookingStatus::Confirmed->value)
             ->whereBetween('starts_at', [now(), now()->addMinutes($lead)])
+            ->when(! $this->option('force'), fn ($query) => $query->whereNull('reminded_at'))
             ->get();
 
         $sent = 0;
@@ -40,10 +41,15 @@ class SendBookingReminders extends Command
                 $recipients = collect([$booking->organiser]);
             }
 
-            if ($recipients->isNotEmpty()) {
-                Notification::send($recipients, new BookingReminder($booking));
-                $sent += $recipients->count();
+            if ($recipients->isEmpty()) {
+                continue;
             }
+
+            Notification::send($recipients, new BookingReminder($booking));
+
+            $booking->forceFill(['reminded_at' => now()])->save();
+
+            $sent += $recipients->count();
         }
 
         $this->info("Sent {$sent} booking reminder(s).");
