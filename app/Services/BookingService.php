@@ -354,10 +354,6 @@ class BookingService
     }
 
     /**
-     * @param  array<int, int>  $resourceIds
-     * @return Collection<int, resource>
-     */
-    /**
      * Serialize the availability check and write for a set of resources.
      *
      * Two concurrent requests that touch the same resource must not both pass
