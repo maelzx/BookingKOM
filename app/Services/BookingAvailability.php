@@ -9,6 +9,7 @@ use App\Models\Resource;
 use App\Models\ResourceBlockedPeriod;
 use App\Models\Setting;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -202,6 +203,9 @@ class BookingAvailability
     /**
      * Build 30-minute slots for a resource on a date, marking each as available or not.
      *
+     * Loads the day's bookings and blocked periods once (instead of querying
+     * per slot) and evaluates availability in memory.
+     *
      * @return array<int, array{start: Carbon, end: Carbon, available: bool}>
      */
     public function slotsForDate(Resource $resource, CarbonInterface $date, ?int $ignoreBookingId = null): array
@@ -209,29 +213,66 @@ class BookingAvailability
         [$from, $to, $days] = $resource->workingWindow();
         $day = Carbon::parse($date);
         $isOpenDay = in_array((int) $day->dayOfWeekIso, $days, true);
+        $bookable = $resource->isBookable();
 
         $cursor = $day->copy()->setTimeFromTimeString($from);
         $endOfWindow = $day->copy()->setTimeFromTimeString($to);
 
-        $slots = [];
+        $buffer = $this->bufferMinutes($resource);
 
-        while ($cursor->lt($endOfWindow)) {
-            $slotEnd = $cursor->copy()->addMinutes(self::SLOT_MINUTES);
+        $bookings = $bookable
+            ? Booking::query()
+                ->booked()
+                ->whereHas('resources', fn ($query) => $query->whereKey($resource->getKey()))
+                ->overlapping($cursor->copy()->subMinutes($buffer), $endOfWindow->copy()->addMinutes($buffer))
+                ->when($ignoreBookingId, fn ($query) => $query->whereKeyNot($ignoreBookingId))
+                ->get(['id', 'starts_at', 'ends_at'])
+            : collect();
+
+        $blocks = ResourceBlockedPeriod::query()
+            ->where('resource_id', $resource->getKey())
+            ->overlapping($cursor, $endOfWindow)
+            ->get(['starts_at', 'ends_at']);
+
+        $slots = [];
+        $slotCursor = $cursor->copy();
+
+        while ($slotCursor->lt($endOfWindow)) {
+            $slotEnd = $slotCursor->copy()->addMinutes(self::SLOT_MINUTES);
 
             if ($slotEnd->gt($endOfWindow)) {
                 $slotEnd = $endOfWindow->copy();
             }
 
+            $available = $isOpenDay
+                && $bookable
+                && ! $this->overlapsAny($blocks, $slotCursor, $slotEnd)
+                && ! $this->overlapsAny(
+                    $bookings,
+                    $slotCursor->copy()->subMinutes($buffer),
+                    $slotEnd->copy()->addMinutes($buffer),
+                );
+
             $slots[] = [
-                'start' => $cursor->copy(),
+                'start' => $slotCursor->copy(),
                 'end' => $slotEnd->copy(),
-                'available' => $isOpenDay && $this->isAvailable($resource, $cursor, $slotEnd, $ignoreBookingId),
+                'available' => $available,
             ];
 
-            $cursor = $slotEnd;
+            $slotCursor = $slotEnd;
         }
 
         return $slots;
+    }
+
+    /**
+     * @param  Collection<int, Model>  $intervals
+     */
+    protected function overlapsAny(Collection $intervals, CarbonInterface $start, CarbonInterface $end): bool
+    {
+        return $intervals->contains(
+            fn ($interval): bool => $interval->starts_at->lt($end) && $interval->ends_at->gt($start)
+        );
     }
 
     /**
