@@ -24,7 +24,14 @@ new #[Layout('layouts.app')] class extends Component
     public ?int $resource = null;
 
     #[Url(history: true)]
-    public string $scope = 'upcoming';
+    public string $scope = '';
+
+    public function mount(): void
+    {
+        if ($this->scope === '') {
+            $this->scope = $this->defaultScope();
+        }
+    }
 
     public function updating(): void
     {
@@ -33,8 +40,20 @@ new #[Layout('layouts.app')] class extends Component
 
     public function resetFilters(): void
     {
-        $this->reset(['search', 'status', 'resource', 'scope']);
+        $this->reset(['search', 'status', 'resource']);
+        $this->scope = $this->defaultScope();
         $this->resetPage();
+    }
+
+    /**
+     * Regular users start on their own bookings; managers and admins on the
+     * upcoming operational view. Everyone can still switch to see all.
+     */
+    protected function defaultScope(): string
+    {
+        return auth()->user()->hasRole(\App\Enums\Role::Admin, \App\Enums\Role::ResourceManager)
+            ? 'upcoming'
+            : 'mine';
     }
 
     public function cancel(int $id, BookingService $service): void
@@ -54,15 +73,9 @@ new #[Layout('layouts.app')] class extends Component
     public function with(): array
     {
         $user = auth()->user();
-        $canSeeAll = $user->hasRole(\App\Enums\Role::Admin, \App\Enums\Role::ResourceManager);
 
         $bookings = Booking::query()
             ->with(['resources', 'organiser'])
-            ->when(! $canSeeAll, fn ($query) => $query->where(function ($query) use ($user): void {
-                $query->where('user_id', $user->id)
-                    ->orWhereHas('attendees', fn ($q) => $q->where('user_id', $user->id))
-                    ->orWhereHas('resources', fn ($q) => $q->where('manager_id', $user->id));
-            }))
             ->when($this->search !== '', function ($query): void {
                 $term = '%'.$this->search.'%';
                 $query->where(function ($query) use ($term): void {
@@ -76,7 +89,11 @@ new #[Layout('layouts.app')] class extends Component
             ->when($this->resource, fn ($query) => $query->whereHas('resources', fn ($q) => $q->whereKey($this->resource)))
             ->when($this->scope === 'upcoming', fn ($query) => $query->where('ends_at', '>=', now())->whereIn('status', [BookingStatus::Pending->value, BookingStatus::Approved->value, BookingStatus::Confirmed->value]))
             ->when($this->scope === 'past', fn ($query) => $query->where('ends_at', '<', now()))
-            ->when($this->scope === 'mine', fn ($query) => $query->where('user_id', $user->id))
+            ->when($this->scope === 'mine', fn ($query) => $query->where(function ($query) use ($user): void {
+                $query->where('user_id', $user->id)
+                    ->orWhereHas('attendees', fn ($q) => $q->where('user_id', $user->id))
+                    ->orWhereHas('resources', fn ($q) => $q->where('manager_id', $user->id));
+            }))
             ->orderByDesc('starts_at')
             ->paginate(15);
 
@@ -84,6 +101,7 @@ new #[Layout('layouts.app')] class extends Component
             'bookings' => $bookings,
             'resources' => Resource::orderBy('name')->get(),
             'statuses' => BookingStatus::cases(),
+            'defaultScope' => $this->defaultScope(),
         ];
     }
 }; ?>
@@ -114,10 +132,10 @@ new #[Layout('layouts.app')] class extends Component
 
                 <label for="booking-scope" class="sr-only">{{ __('Scope') }}</label>
                 <select wire:model.live="scope" id="booking-scope" class="select select-bordered w-full border-base-300 focus:border-primary focus:ring-primary">
-                    <option value="upcoming">{{ __('Upcoming') }}</option>
-                    <option value=""> {{ __('All') }}</option>
-                    <option value="past">{{ __('Past') }}</option>
                     <option value="mine">{{ __('My bookings') }}</option>
+                    <option value="upcoming">{{ __('Upcoming') }}</option>
+                    <option value="all">{{ __('All') }}</option>
+                    <option value="past">{{ __('Past') }}</option>
                 </select>
 
                 <label for="booking-status-filter" class="sr-only">{{ __('Status') }}</label>
@@ -143,7 +161,7 @@ new #[Layout('layouts.app')] class extends Component
                     <span wire:loading class="ms-1 text-primary">{{ __('Updating…') }}</span>
                 </p>
 
-                @if ($search !== '' || $status !== '' || $resource || $scope !== 'upcoming')
+                @if ($search !== '' || $status !== '' || $resource || $scope !== $defaultScope)
                     <button type="button" wire:click="resetFilters" class="btn btn-ghost btn-xs rounded-lg text-base-content/70">{{ __('Clear filters') }}</button>
                 @endif
             </div>

@@ -8,6 +8,7 @@ use App\Models\BookingAttendee;
 use App\Models\Resource;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Volt\Volt;
 use Tests\TestCase;
 
 class BookingPermissionTest extends TestCase
@@ -80,6 +81,31 @@ class BookingPermissionTest extends TestCase
         $user = User::factory()->user()->create();
 
         $this->assertFalse($user->can('create', Resource::class));
+    }
+
+    public function test_regular_user_can_browse_all_bookings_from_the_list(): void
+    {
+        $user = User::factory()->user()->create();
+        $other = User::factory()->user()->create();
+        Booking::factory()->create(['user_id' => $other->id, 'title' => 'Someone Elses Meeting']);
+
+        $this->actingAs($user);
+
+        Volt::test('bookings.index')
+            ->assertSet('scope', 'mine')
+            ->assertDontSee('Someone Elses Meeting')
+            ->set('scope', 'all')
+            ->assertSee('Someone Elses Meeting');
+    }
+
+    public function test_manager_defaults_to_the_upcoming_scope(): void
+    {
+        $manager = User::factory()->resourceManager()->create();
+
+        $this->actingAs($manager);
+
+        Volt::test('bookings.index')
+            ->assertSet('scope', 'upcoming');
     }
 
     private function booking(User $organiser, ?User $manager = null): Booking

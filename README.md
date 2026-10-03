@@ -66,6 +66,15 @@ line is approved.
 | Approve bookings | ✅ (all) | ✅ (own resources) | — |
 | Reports & exports | ✅ | ✅ | — |
 
+### Visibility model
+
+- **Calendar & booking detail** — any signed-in user can see every booking. Availability is
+  shared, so the calendar never shows an entry it then refuses to open.
+- **Bookings list** — defaults to *My bookings* for regular users and *Upcoming* for resource
+  managers / admins. Everyone can switch the scope to *All* or *Past* to browse.
+- **Writing** — only the organiser (or an admin) can edit or cancel a booking; only an admin,
+  the resource owner, or an authorised resource manager can approve one.
+
 ## Tech stack
 
 Laravel 13 · PHP 8.4 · Livewire 3 + Volt · Tailwind CSS 4 + daisyUI · Vite · SQLite (default) /
