@@ -118,8 +118,26 @@ class ExportController extends Controller
             $csv->insertOne($headers);
 
             foreach ($rows as $row) {
-                $csv->insertOne($row);
+                $csv->insertOne($this->sanitizeRow($row));
             }
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * Neutralise spreadsheet formula injection by prefixing cells that start
+     * with a formula trigger character with an apostrophe.
+     *
+     * @param  array<int, mixed>  $row
+     * @return array<int, mixed>
+     */
+    protected function sanitizeRow(array $row): array
+    {
+        return array_map(function (mixed $value): mixed {
+            if (is_string($value) && $value !== '' && in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+                return "'".$value;
+            }
+
+            return $value;
+        }, $row);
     }
 }
