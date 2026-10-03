@@ -37,11 +37,16 @@ new #[Layout('layouts.app')] class extends Component
         session()->flash('status', __('Booking approved.'));
     }
 
-    public function reject(BookingService $service): void
+    public function reject(BookingService $service, ?int $resourceId = null): void
     {
-        Gate::authorize('approve', $this->booking);
+        if ($resourceId) {
+            $resource = $this->booking->resources->firstWhere('id', $resourceId);
+            abort_unless($resource && Gate::allows('rejectResource', [$this->booking, $resource]), 403);
+        } else {
+            Gate::authorize('reject', $this->booking);
+        }
 
-        $service->reject($this->booking, auth()->user(), $this->decisionNote ?: null);
+        $service->reject($this->booking, auth()->user(), $this->decisionNote ?: null, $resourceId);
         $this->reset('decisionNote');
         $this->booking->refresh();
 
@@ -160,6 +165,9 @@ new #[Layout('layouts.app')] class extends Component
                                     @if ($resource->pivot->status === 'pending' && Gate::allows('approveResource', [$booking, $resource]))
                                         <button wire:click="approve({{ $resource->id }})" class="btn btn-success btn-xs rounded-lg">{{ __('Approve') }}</button>
                                     @endif
+                                    @if ($resource->pivot->status === 'pending' && Gate::allows('rejectResource', [$booking, $resource]))
+                                        <button wire:click="reject({{ $resource->id }})" wire:confirm="{{ __('Reject this booking?') }}" class="btn btn-error btn-outline btn-xs rounded-lg">{{ __('Reject') }}</button>
+                                    @endif
                                 </div>
                             </li>
                         @endforeach
@@ -202,14 +210,18 @@ new #[Layout('layouts.app')] class extends Component
                     <div class="card space-y-4 bg-base-100 p-5 sm:p-6">
                         <h2 class="text-base font-semibold text-base-content">{{ __('Actions') }}</h2>
 
-                        @if (Gate::allows('approve', $booking) && $booking->status === \App\Enums\BookingStatus::Pending)
+                        @if ($booking->status === \App\Enums\BookingStatus::Pending && (Gate::allows('approve', $booking) || Gate::allows('reject', $booking)))
                             <div>
                                 <x-input-label for="decisionNote" :value="__('Decision note (optional)')" />
                                 <textarea wire:model="decisionNote" id="decisionNote" rows="2" class="textarea textarea-bordered mt-1 block w-full rounded-md border-base-300 focus:border-primary focus:ring-primary"></textarea>
                             </div>
                             <div class="flex gap-2">
-                                <button wire:click="approve" class="btn btn-success btn-sm flex-1 rounded-xl">{{ __('Approve all') }}</button>
-                                <button wire:click="reject" wire:confirm="{{ __('Reject this booking?') }}" class="btn btn-error btn-sm flex-1 rounded-xl">{{ __('Reject') }}</button>
+                                @if (Gate::allows('approve', $booking))
+                                    <button wire:click="approve" class="btn btn-success btn-sm flex-1 rounded-xl">{{ __('Approve all') }}</button>
+                                @endif
+                                @if (Gate::allows('reject', $booking))
+                                    <button wire:click="reject" wire:confirm="{{ __('Reject this booking?') }}" class="btn btn-error btn-sm flex-1 rounded-xl">{{ __('Reject') }}</button>
+                                @endif
                             </div>
                         @endif
 

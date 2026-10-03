@@ -55,6 +55,15 @@ class BookingPolicy
         return $this->managesAnyResource($user, $booking);
     }
 
+    /**
+     * Rejecting a booking rejects the whole booking. Admin, or a manager
+     * responsible for at least one pending line.
+     */
+    public function reject(User $user, Booking $booking): bool
+    {
+        return $this->approve($user, $booking);
+    }
+
     public function complete(User $user, Booking $booking): bool
     {
         return $booking->canBeManagedBy($user)
@@ -83,5 +92,13 @@ class BookingPolicy
         }
 
         return $resource->manager_id === $user->id;
+    }
+
+    /**
+     * Reject a specific resource line: only that resource's manager.
+     */
+    public function rejectResource(User $user, Booking $booking, Resource $resource): bool
+    {
+        return $this->approveResource($user, $booking, $resource);
     }
 }

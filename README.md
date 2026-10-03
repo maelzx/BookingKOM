@@ -48,11 +48,15 @@ several resources at once, and the system never allows double-booking.
 
 ### Booking statuses
 
-`Pending → Approved → Confirmed → Completed`, plus `Rejected`, `Cancelled` and `No-show`.
+`Pending → Confirmed → Completed`, plus `Rejected`, `Cancelled` and `No-show`.
 
 Bookings with no approval requirement are **Confirmed** instantly. When any selected resource
 requires approval the booking starts **Pending**, and becomes **Confirmed** once every resource
-line is approved.
+line is approved. Approvals are per resource line: each line is decided by that resource's owner
+(or an administrator), and a single rejection rejects the whole booking.
+
+> The `approved` status exists in the enum for manual/forward-compatible use; the standard
+> approval flow moves straight from `Pending` to `Confirmed` when all lines are approved.
 
 ## Roles
 

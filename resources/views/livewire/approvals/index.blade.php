@@ -25,7 +25,7 @@ new #[Layout('layouts.app')] class extends Component
     public function reject(int $id, BookingService $service): void
     {
         $booking = Booking::findOrFail($id);
-        Gate::authorize('approve', $booking);
+        Gate::authorize('reject', $booking);
 
         $service->reject($booking, auth()->user());
 

@@ -171,6 +171,10 @@ class BookingService
                 }
             );
 
+            if ($targets->isEmpty()) {
+                throw new BookingException(__('Nothing to approve.'));
+            }
+
             foreach ($targets as $resource) {
                 $booking->resources()->updateExistingPivot($resource->id, [
                     'status' => 'approved',
@@ -182,41 +186,77 @@ class BookingService
 
             $booking->refresh()->load('resources');
 
+            $becameConfirmed = false;
+
             if ($booking->isFullyApproved()) {
                 $booking->status = BookingStatus::Confirmed;
                 $booking->approved_at = now();
                 $booking->approved_by = $approver->id;
                 $booking->decision_note = $note;
                 $booking->save();
+                $becameConfirmed = true;
             }
 
-            $booking->load('organiser', 'resources');
-            $this->notifyOrganiser($booking, 'approved');
+            // Only tell the organiser once the whole booking is confirmed;
+            // partial line approvals must not read as "your booking is approved".
+            if ($becameConfirmed) {
+                $booking->load('organiser', 'resources');
+                $this->notifyOrganiser($booking, 'approved');
+            }
 
             return $booking;
         });
     }
 
     /**
-     * Reject a booking. Rejecting any resource rejects the whole booking.
+     * Reject a booking. Rejecting a line (or the booking) rejects the whole
+     * booking; a manager may only act on lines they are responsible for.
      */
-    public function reject(Booking $booking, User $approver, ?string $note = null): Booking
+    public function reject(Booking $booking, User $approver, ?string $note = null, ?int $resourceId = null): Booking
     {
         if (! $booking->status->isActive()) {
             throw new BookingException(__('This booking can no longer be rejected.'));
         }
 
-        return DB::transaction(function () use ($booking, $approver, $note): Booking {
-            $booking->resources()->newPivotStatement()
-                ->where('booking_id', $booking->id)
-                ->where('status', 'pending')
-                ->update([
+        return DB::transaction(function () use ($booking, $approver, $note, $resourceId): Booking {
+            $booking->load('resources');
+
+            $targets = $booking->resources->filter(
+                function (Resource $resource) use ($resourceId, $approver): bool {
+                    if ($resource->pivot->status !== 'pending') {
+                        return false;
+                    }
+
+                    if ($resourceId !== null && $resource->id !== $resourceId) {
+                        return false;
+                    }
+
+                    if ($approver->isAdmin()) {
+                        return true;
+                    }
+
+                    return $resource->manager_id === $approver->id;
+                }
+            );
+
+            if ($targets->isEmpty()) {
+                throw new BookingException(__('Nothing to reject.'));
+            }
+
+            foreach ($booking->resources as $resource) {
+                if ($resource->pivot->status !== 'pending') {
+                    continue;
+                }
+
+                $isTarget = $targets->contains('id', $resource->id);
+
+                $booking->resources()->updateExistingPivot($resource->id, [
                     'status' => 'rejected',
-                    'responded_by' => $approver->id,
-                    'responded_at' => now(),
-                    'note' => $note,
-                    'updated_at' => now(),
+                    'responded_by' => $isTarget ? $approver->id : null,
+                    'responded_at' => $isTarget ? now() : null,
+                    'note' => $isTarget ? $note : null,
                 ]);
+            }
 
             $booking->status = BookingStatus::Rejected;
             $booking->rejected_at = now();

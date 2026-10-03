@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Enums\ApprovalMode;
 use App\Enums\BookingStatus;
+use App\Exceptions\BookingException;
 use App\Models\Booking;
 use App\Models\Resource;
 use App\Models\User;
+use App\Notifications\BookingDecision;
 use App\Services\BookingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -105,6 +107,78 @@ class BookingApprovalTest extends TestCase
 
         app(BookingService::class)->approve($booking, $admin);
         $this->assertSame(BookingStatus::Confirmed, $booking->fresh()->status);
+    }
+
+    public function test_partial_line_approval_does_not_notify_the_organiser(): void
+    {
+        $managerA = User::factory()->resourceManager()->create();
+        $managerB = User::factory()->resourceManager()->create();
+
+        $room = $this->resource(ApprovalMode::Owner, $managerA);
+        $projector = $this->resource(ApprovalMode::Owner, $managerB);
+        $organiser = User::factory()->user()->create();
+
+        $booking = app(BookingService::class)->create($organiser, [
+            'title' => 'Needs two approvals',
+            'starts_at' => $start = Carbon::parse('next tuesday 10:00'),
+            'ends_at' => $start->copy()->addHour(),
+        ], [$room->id, $projector->id]);
+
+        app(BookingService::class)->approve($booking, $managerA);
+
+        Notification::assertNotSentTo($organiser, BookingDecision::class);
+    }
+
+    public function test_manager_cannot_reject_a_line_they_do_not_own(): void
+    {
+        $managerA = User::factory()->resourceManager()->create();
+        $managerB = User::factory()->resourceManager()->create();
+
+        $room = $this->resource(ApprovalMode::Owner, $managerA);
+        $projector = $this->resource(ApprovalMode::Owner, $managerB);
+
+        $booking = app(BookingService::class)->create(User::factory()->user()->create(), [
+            'title' => 'Shared',
+            'starts_at' => $start = Carbon::parse('next tuesday 11:00'),
+            'ends_at' => $start->copy()->addHour(),
+        ], [$room->id, $projector->id]);
+
+        $this->expectException(BookingException::class);
+
+        app(BookingService::class)->reject($booking, $managerA, 'not mine', $projector->id);
+    }
+
+    public function test_manager_rejecting_their_own_line_rejects_the_booking(): void
+    {
+        $managerA = User::factory()->resourceManager()->create();
+        $managerB = User::factory()->resourceManager()->create();
+
+        $room = $this->resource(ApprovalMode::Owner, $managerA);
+        $projector = $this->resource(ApprovalMode::Owner, $managerB);
+
+        $booking = app(BookingService::class)->create(User::factory()->user()->create(), [
+            'title' => 'Shared',
+            'starts_at' => $start = Carbon::parse('next tuesday 12:00'),
+            'ends_at' => $start->copy()->addHour(),
+        ], [$room->id, $projector->id]);
+
+        app(BookingService::class)->reject($booking, $managerA, 'room unavailable', $room->id);
+
+        $this->assertSame(BookingStatus::Rejected, $booking->fresh()->status);
+    }
+
+    public function test_approving_with_nothing_pending_throws(): void
+    {
+        $manager = User::factory()->resourceManager()->create();
+        $resource = $this->resource(ApprovalMode::Owner, $manager);
+        $booking = $this->create($resource, User::factory()->user()->create());
+
+        $service = app(BookingService::class);
+        $service->approve($booking, $manager);
+
+        $this->expectException(BookingException::class);
+
+        $service->approve($booking->fresh(), $manager);
     }
 
     private function resource(ApprovalMode $mode, ?User $manager = null): Resource
