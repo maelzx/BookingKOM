@@ -39,3 +39,7 @@ Thumbs.db
 /.mcp.json
 /boost.json
 /opencode.json
+
+# Local planning / working notes (not published)
+/plan.md
+/*.plan.md
