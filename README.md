@@ -2,6 +2,8 @@
 
 **Rooms. Vehicles. Equipment. People. One booking system.**
 
+[![CI](https://github.com/maelzx/BookingKOM/actions/workflows/ci.yml/badge.svg)](https://github.com/maelzx/BookingKOM/actions/workflows/ci.yml)
+
 BookingKOM is an open-source resource booking and scheduling system for small and medium
 organisations. If it can be booked, it is a **resource** — meeting rooms, company vehicles,
 projectors, training rooms, shared facilities, or a colleague's time. A single booking can combine
