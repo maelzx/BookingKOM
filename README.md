@@ -168,6 +168,11 @@ php artisan queue:work        # processes notification jobs
 6. Run a queue worker and the scheduler under a supervisor (systemd/supervisor).
 7. Create the first administrator: `php artisan admin:create you@example.org`.
 
+> **Cache store:** booking creation uses atomic cache locks (`cache.lock`) to prevent
+> double-booking under concurrency. Keep a store that supports atomic locks — the
+> default `database` store (uses the `cache_locks` table) or Redis. Do not use the
+> `file` or `array` store in production.
+
 ## Project layout
 
 ```

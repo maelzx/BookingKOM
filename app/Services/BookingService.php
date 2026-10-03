@@ -14,8 +14,10 @@ use App\Notifications\BookingApprovalRequired;
 use App\Notifications\BookingCancelled;
 use App\Notifications\BookingCreated;
 use App\Notifications\BookingDecision;
+use Closure;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
@@ -29,6 +31,7 @@ class BookingService
         private readonly BookingAvailability $availability,
         private readonly BookingStatusTransition $transitions,
         private readonly RecurrenceService $recurrence,
+        private readonly int $lockWaitSeconds = 5,
     ) {}
 
     /**
@@ -45,43 +48,45 @@ class BookingService
 
         $occurrences = $this->buildOccurrences($start, $end, $attributes['recurrence'] ?? null);
 
-        $this->assertWindowIsAvailable($resources, $occurrences);
+        return $this->withResourceLocks($resources->pluck('id')->all(), function () use ($organiser, $attributes, $resources, $attendeeIds, $occurrences): Booking {
+            $this->assertWindowIsAvailable($resources, $occurrences);
 
-        return DB::transaction(function () use ($organiser, $attributes, $resources, $attendeeIds, $occurrences): Booking {
-            $requiresApproval = $resources->contains(fn (Resource $resource): bool => $resource->requiresApproval());
-            $status = $requiresApproval ? BookingStatus::Pending : BookingStatus::Confirmed;
+            return DB::transaction(function () use ($organiser, $attributes, $resources, $attendeeIds, $occurrences): Booking {
+                $requiresApproval = $resources->contains(fn (Resource $resource): bool => $resource->requiresApproval());
+                $status = $requiresApproval ? BookingStatus::Pending : BookingStatus::Confirmed;
 
-            $parent = null;
+                $parent = null;
 
-            foreach ($occurrences as $index => $occurrence) {
-                $booking = Booking::create([
-                    'title' => $attributes['title'],
-                    'purpose' => $attributes['purpose'] ?? null,
-                    'user_id' => $organiser->id,
-                    'department' => $attributes['department'] ?? null,
-                    'starts_at' => $occurrence['start'],
-                    'ends_at' => $occurrence['end'],
-                    'status' => $status,
-                    'recurrence_rule' => $index === 0 ? ($attributes['recurrence'] ?? null) : null,
-                    'recurrence_parent_id' => $parent?->id,
-                    'occurrence_index' => count($occurrences) > 1 ? $index : null,
-                ]);
+                foreach ($occurrences as $index => $occurrence) {
+                    $booking = Booking::create([
+                        'title' => $attributes['title'],
+                        'purpose' => $attributes['purpose'] ?? null,
+                        'user_id' => $organiser->id,
+                        'department' => $attributes['department'] ?? null,
+                        'starts_at' => $occurrence['start'],
+                        'ends_at' => $occurrence['end'],
+                        'status' => $status,
+                        'recurrence_rule' => $index === 0 ? ($attributes['recurrence'] ?? null) : null,
+                        'recurrence_parent_id' => $parent?->id,
+                        'occurrence_index' => count($occurrences) > 1 ? $index : null,
+                    ]);
 
-                $parent ??= $booking;
+                    $parent ??= $booking;
 
-                $this->attachResources($booking, $resources);
-                $this->attachAttendees($booking, $organiser, $attendeeIds);
-            }
+                    $this->attachResources($booking, $resources);
+                    $this->attachAttendees($booking, $organiser, $attendeeIds);
+                }
 
-            $parent->load('resources.manager', 'attendees');
+                $parent->load('resources.manager', 'attendees');
 
-            $this->notifyCreated($parent);
+                $this->notifyCreated($parent);
 
-            if ($requiresApproval) {
-                $this->notifyApprovers($parent);
-            }
+                if ($requiresApproval) {
+                    $this->notifyApprovers($parent);
+                }
 
-            return $parent->loadCount('occurrences')->load('resources', 'attendees', 'organiser');
+                return $parent->loadCount('occurrences')->load('resources', 'attendees', 'organiser');
+            });
         });
     }
 
@@ -101,35 +106,37 @@ class BookingService
 
         $resources = $this->resolveResources($resourceIds);
 
-        $this->assertOccurrenceAvailable($resources, $start, $end, $booking->id);
+        return $this->withResourceLocks($resources->pluck('id')->all(), function () use ($booking, $attributes, $resources, $attendeeIds, $start, $end): Booking {
+            $this->assertOccurrenceAvailable($resources, $start, $end, $booking->id);
 
-        return DB::transaction(function () use ($booking, $attributes, $resources, $attendeeIds, $start, $end): Booking {
-            $booking->update([
-                'title' => $attributes['title'],
-                'purpose' => $attributes['purpose'] ?? null,
-                'department' => $attributes['department'] ?? null,
-                'starts_at' => $start,
-                'ends_at' => $end,
-            ]);
+            return DB::transaction(function () use ($booking, $attributes, $resources, $attendeeIds, $start, $end): Booking {
+                $booking->update([
+                    'title' => $attributes['title'],
+                    'purpose' => $attributes['purpose'] ?? null,
+                    'department' => $attributes['department'] ?? null,
+                    'starts_at' => $start,
+                    'ends_at' => $end,
+                ]);
 
-            $booking->resources()->detach();
-            $this->attachResources($booking, $resources);
+                $booking->resources()->detach();
+                $this->attachResources($booking, $resources);
 
-            $booking->attendees()->delete();
-            $this->attachAttendees($booking, $booking->organiser, $attendeeIds);
+                $booking->attendees()->delete();
+                $this->attachAttendees($booking, $booking->organiser, $attendeeIds);
 
-            $requiresApproval = $resources->contains(fn (Resource $resource): bool => $resource->requiresApproval());
+                $requiresApproval = $resources->contains(fn (Resource $resource): bool => $resource->requiresApproval());
 
-            if ($requiresApproval && $booking->status === BookingStatus::Confirmed) {
-                $booking->status = BookingStatus::Pending;
-                $booking->approved_at = null;
-                $booking->approved_by = null;
-                $booking->save();
-            }
+                if ($requiresApproval && $booking->status === BookingStatus::Confirmed) {
+                    $booking->status = BookingStatus::Pending;
+                    $booking->approved_at = null;
+                    $booking->approved_by = null;
+                    $booking->save();
+                }
 
-            $booking->refresh()->load('resources', 'attendees', 'organiser');
+                $booking->refresh()->load('resources', 'attendees', 'organiser');
 
-            return $booking;
+                return $booking;
+            });
         });
     }
 
@@ -276,6 +283,39 @@ class BookingService
      * @param  array<int, int>  $resourceIds
      * @return Collection<int, resource>
      */
+    /**
+     * Serialize the availability check and write for a set of resources.
+     *
+     * Two concurrent requests that touch the same resource must not both pass
+     * the conflict check and then insert. We take one cache lock per resource
+     * (in a stable order to avoid deadlocks) and hold it until the wrapped
+     * transaction has committed. The check runs *inside* the lock so MySQL/
+     * MariaDB cannot double-book the way an unlocked TOCTOU window would.
+     *
+     * @param  array<int, int>  $resourceIds
+     */
+    protected function withResourceLocks(array $resourceIds, Closure $callback): mixed
+    {
+        $ids = array_values(array_unique(array_map('intval', $resourceIds)));
+        sort($ids);
+
+        $locks = array_map(fn (int $id) => Cache::lock('booking-resource-'.$id, 10), $ids);
+        $acquired = [];
+
+        try {
+            foreach ($locks as $lock) {
+                $lock->block($this->lockWaitSeconds);
+                $acquired[] = $lock;
+            }
+
+            return $callback();
+        } finally {
+            foreach (array_reverse($acquired) as $lock) {
+                optional($lock)->release();
+            }
+        }
+    }
+
     protected function resolveResources(array $resourceIds): Collection
     {
         $resources = Resource::query()->with('manager')->whereIn('id', $resourceIds)->get();
