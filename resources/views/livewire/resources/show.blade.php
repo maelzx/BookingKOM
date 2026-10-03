@@ -7,12 +7,16 @@ use App\Models\ResourceBlockedPeriod;
 use App\Services\BookingAvailability;
 use App\Support\ResourceQrCode;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 
 new #[Layout('layouts.app')] class extends Component
 {
+    use WithFileUploads;
+
     public Resource $resource;
 
     public string $availabilityDate = '';
@@ -24,6 +28,8 @@ new #[Layout('layouts.app')] class extends Component
     public string $blockEndsAt = '';
 
     public string $blockReason = '';
+
+    public mixed $attachment = null;
 
     public function mount(Resource $resource): void
     {
@@ -61,6 +67,39 @@ new #[Layout('layouts.app')] class extends Component
         ResourceBlockedPeriod::where('resource_id', $this->resource->id)->whereKey($id)->delete();
     }
 
+    public function uploadAttachment(): void
+    {
+        Gate::authorize('update', $this->resource);
+
+        $validated = $this->validate([
+            'attachment' => ['required', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,jpg,jpeg,png,webp'],
+        ]);
+
+        $file = $validated['attachment'];
+        $path = $file->store('attachments', 'local');
+
+        $this->resource->attachments()->create([
+            'original_name' => $file->getClientOriginalName(),
+            'file_path' => $path,
+            'mime_type' => $file->getClientMimeType(),
+            'size' => $file->getSize(),
+            'uploaded_by' => auth()->id(),
+        ]);
+
+        $this->reset('attachment');
+        $this->dispatch('attachment-added');
+    }
+
+    public function deleteAttachment(int $id): void
+    {
+        $attachment = $this->resource->attachments()->whereKey($id)->firstOrFail();
+
+        Gate::authorize('delete', $attachment);
+
+        Storage::disk('local')->delete($attachment->file_path);
+        $attachment->delete();
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -84,6 +123,7 @@ new #[Layout('layouts.app')] class extends Component
                 ->orderBy('starts_at')
                 ->get(),
             'blockTypes' => BlockType::cases(),
+            'attachments' => $this->resource->attachments()->with('uploader')->latest()->get(),
             'qr' => ResourceQrCode::dataUri($this->resource, 320),
             'scanUrl' => route('scan.show', $this->resource->code),
         ];
@@ -196,6 +236,42 @@ new #[Layout('layouts.app')] class extends Component
                             <li class="rounded-xl bg-base-200/60 px-4 py-6 text-center text-sm text-base-content/60">{{ __('No upcoming bookings.') }}</li>
                         @endforelse
                     </ul>
+                </div>
+
+                <div class="card bg-base-100 p-5 sm:p-6">
+                    <h2 class="text-base font-semibold text-base-content">{{ __('Attachments') }}</h2>
+                    <p class="mt-1 text-sm text-base-content/55">{{ __('Documents, manuals or photos for this resource.') }}</p>
+
+                    <ul class="mt-4 divide-y divide-base-200">
+                        @forelse ($attachments as $file)
+                            <li class="flex items-center justify-between gap-3 py-3">
+                                <div class="min-w-0">
+                                    <a href="{{ route('attachments.download', $file) }}" class="block truncate text-sm font-medium text-primary hover:opacity-80">{{ $file->original_name }}</a>
+                                    <p class="text-xs text-base-content/50">{{ $file->humanSize() }} · {{ $file->uploader?->name ?? '—' }} · {{ $file->created_at->format('d M Y') }}</p>
+                                </div>
+                                @can('delete', $file)
+                                    <button wire:click="deleteAttachment({{ $file->id }})" wire:confirm="{{ __('Delete this attachment?') }}" class="shrink-0 text-sm text-error hover:opacity-80">{{ __('Delete') }}</button>
+                                @endcan
+                            </li>
+                        @empty
+                            <li class="rounded-xl bg-base-200/60 px-4 py-6 text-center text-sm text-base-content/60">{{ __('No attachments.') }}</li>
+                        @endforelse
+                    </ul>
+
+                    @can('update', $resource)
+                        <form wire:submit="uploadAttachment" class="mt-5 space-y-3 border-t border-base-200 pt-5">
+                            <div>
+                                <x-input-label for="attachment" :value="__('Upload a file')" />
+                                <input wire:model="attachment" id="attachment" type="file" class="mt-1 block w-full text-sm text-base-content/70" />
+                                <x-input-error :messages="$errors->get('attachment')" class="mt-2" />
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <x-secondary-button type="submit">{{ __('Upload') }}</x-secondary-button>
+                                <x-action-message on="attachment-added">{{ __('Uploaded.') }}</x-action-message>
+                                <span wire:loading wire:target="attachment" class="text-xs text-primary">{{ __('Uploading…') }}</span>
+                            </div>
+                        </form>
+                    @endcan
                 </div>
 
                 @can('manageBlockedPeriods', $resource)

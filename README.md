@@ -21,6 +21,7 @@ several resources at once, and the system never allows double-booking.
 - ✓ **Configurable approvals** per resource (none, admin, owner, or explicit acceptance)
 - ✓ **Recurring bookings** (daily / weekly / monthly)
 - ✓ **QR codes** on resources, opening a mobile availability page
+- ✓ **Resource attachments** (private documents/images, authorised downloads)
 - ✓ **Notifications** for creation, approval, decisions, cancellation and reminders
 - ✓ **Reports & CSV export** — utilisation, most booked, cancellations, no-shows, by department
 - ✓ **Role-based access** (Admin / Resource Manager / User)

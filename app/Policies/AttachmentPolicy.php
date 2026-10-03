@@ -2,15 +2,27 @@
 
 namespace App\Policies;
 
-use App\Enums\Role;
 use App\Models\Attachment;
+use App\Models\Resource;
 use App\Models\User;
 
 class AttachmentPolicy
 {
+    /**
+     * Admins (via Gate::before), the uploader, or the manager of the resource
+     * the file is attached to may read a private attachment.
+     */
     public function view(User $user, Attachment $attachment): bool
     {
-        return true;
+        if ($attachment->uploaded_by === $user->id) {
+            return true;
+        }
+
+        $parent = $attachment->relationLoaded('attachable')
+            ? $attachment->attachable
+            : $attachment->attachable()->first();
+
+        return $parent instanceof Resource && $parent->manager_id === $user->id;
     }
 
     public function create(User $user): bool
@@ -18,12 +30,16 @@ class AttachmentPolicy
         return true;
     }
 
-    /**
-     * Uploaders can remove their own files; managers can remove any
-     * (administrators pass via gate before).
-     */
     public function delete(User $user, Attachment $attachment): bool
     {
-        return $user->hasRole(Role::ResourceManager) || $attachment->uploaded_by === $user->id;
+        if ($attachment->uploaded_by === $user->id) {
+            return true;
+        }
+
+        $parent = $attachment->relationLoaded('attachable')
+            ? $attachment->attachable
+            : $attachment->attachable()->first();
+
+        return $parent instanceof Resource && $parent->manager_id === $user->id;
     }
 }
