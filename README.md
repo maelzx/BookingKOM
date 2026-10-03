@@ -189,6 +189,13 @@ tests/              conflict, approval, permission and smoke tests
 
 - [AssetKOM](https://github.com/maelzx/AssetKOM) — open-source asset management (the sibling app this project shares its foundation with).
 
+## Contact
+
+Questions, feature requests, customisation, deployment help or collaboration — get in touch:
+
+- **Request / collaboration form:** https://borang.digital/maelzx/bookingkom-contact
+- **Issues:** https://github.com/maelzx/BookingKOM/issues
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
