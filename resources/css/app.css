@@ -1,0 +1,144 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+@plugin 'daisyui' {
+    themes: bookingkom --default, bookingkom-dark --prefersdark;
+}
+@plugin 'daisyui/theme' {
+    name: 'bookingkom';
+    default: true;
+    prefersdark: false;
+    color-scheme: light;
+
+    --color-base-100: #ffffff;
+    --color-base-200: #eef2ff;
+    --color-base-300: #c7d2fe;
+    --color-base-content: #1e1b4b;
+
+    --color-primary: #4338ca;
+    --color-primary-content: #ffffff;
+    --color-secondary: #0ea5e9;
+    --color-secondary-content: #ffffff;
+    --color-accent: #f59e0b;
+    --color-accent-content: #1f2937;
+    --color-neutral: #1e1b4b;
+    --color-neutral-content: #eef2ff;
+
+    --color-info: #0284c7;
+    --color-info-content: #ffffff;
+    --color-success: #16a34a;
+    --color-success-content: #ffffff;
+    --color-warning: #d97706;
+    --color-warning-content: #000000;
+    --color-error: #dc2626;
+    --color-error-content: #ffffff;
+
+    --radius-selector: 0.5rem;
+    --radius-field: 0.5rem;
+    --radius-box: 0.85rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+}
+@plugin 'daisyui/theme' {
+    name: 'bookingkom-dark';
+    default: false;
+    prefersdark: true;
+    color-scheme: dark;
+
+    --color-base-100: #0f172a;
+    --color-base-200: #1e293b;
+    --color-base-300: #334155;
+    --color-base-content: #e2e8f0;
+
+    --color-primary: #818cf8;
+    --color-primary-content: #1e1b4b;
+    --color-secondary: #38bdf8;
+    --color-secondary-content: #082f49;
+    --color-accent: #fbbf24;
+    --color-accent-content: #1f2937;
+    --color-neutral: #1e1b4b;
+    --color-neutral-content: #eef2ff;
+
+    --color-info: #38bdf8;
+    --color-info-content: #082f49;
+    --color-success: #4ade80;
+    --color-success-content: #052e16;
+    --color-warning: #fbbf24;
+    --color-warning-content: #1f2937;
+    --color-error: #f87171;
+    --color-error-content: #450a0a;
+
+    --radius-selector: 0.5rem;
+    --radius-field: 0.5rem;
+    --radius-box: 0.85rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+}
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+@custom-variant dark (&:where([data-theme=bookingkom-dark], [data-theme=bookingkom-dark] *));
+
+@theme {
+    --font-sans: 'Fira Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+@layer base {
+    :root {
+        scrollbar-gutter: stable;
+        overflow-y: scroll;
+
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    button:not(:disabled),
+    [role='button']:not([aria-disabled='true']) {
+        cursor: pointer;
+    }
+
+    :focus-visible {
+        outline: 3px solid color-mix(in oklab, var(--color-primary) 55%, transparent);
+        outline-offset: 2px;
+    }
+
+    ::selection {
+        background-color: color-mix(in oklab, var(--color-primary) 24%, transparent);
+    }
+}
+
+@layer components {
+    /* Flat design: separation via borders, not shadows. */
+    .card {
+        border: 1px solid var(--color-base-300);
+        border-radius: var(--radius-box);
+        box-shadow: none;
+    }
+
+    .btn,
+    .input,
+    .select,
+    .textarea {
+        transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+    }
+
+    /* Calendar event chips */
+    .calendar-event {
+        @apply block truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-tight;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            scroll-behavior: auto !important;
+            transition-duration: 0.01ms !important;
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+        }
+    }
+}
