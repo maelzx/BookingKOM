@@ -8,7 +8,7 @@
         <title>{{ config('app.name', 'BookingKOM') }}</title>
 
         <link rel="icon" href="/favicon.ico" sizes="any">
-        <meta name="theme-color" content="#4338ca">
+        <meta name="theme-color" content="#0f766e">
         <script>
             (function () {
                 try {

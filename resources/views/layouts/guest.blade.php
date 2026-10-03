@@ -11,7 +11,7 @@
         <link rel="icon" href="/favicon.ico" sizes="any">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
         <link rel="manifest" href="/site.webmanifest">
-        <meta name="theme-color" content="#4338ca">
+        <meta name="theme-color" content="#0f766e">
         <script>
             (function () {
                 try {

@@ -4,8 +4,8 @@
     "description": "Resource booking & scheduling workspace",
     "start_url": "/dashboard",
     "display": "standalone",
-    "background_color": "#eef2ff",
-    "theme_color": "#4338ca",
+    "background_color": "#f0fdfa",
+    "theme_color": "#0f766e",
     "icons": [
         {
             "src": "/icons/icon-192.png",

@@ -10,18 +10,18 @@
     color-scheme: light;
 
     --color-base-100: #ffffff;
-    --color-base-200: #eef2ff;
-    --color-base-300: #c7d2fe;
-    --color-base-content: #1e1b4b;
+    --color-base-200: #f0fdfa;
+    --color-base-300: #ccfbf1;
+    --color-base-content: #134e4a;
 
-    --color-primary: #4338ca;
+    --color-primary: #0f766e;
     --color-primary-content: #ffffff;
-    --color-secondary: #0ea5e9;
-    --color-secondary-content: #ffffff;
-    --color-accent: #f59e0b;
-    --color-accent-content: #1f2937;
-    --color-neutral: #1e1b4b;
-    --color-neutral-content: #eef2ff;
+    --color-secondary: #14b8a6;
+    --color-secondary-content: #0f172a;
+    --color-accent: #ea580c;
+    --color-accent-content: #000000;
+    --color-neutral: #134e4a;
+    --color-neutral-content: #f0fdfa;
 
     --color-info: #0284c7;
     --color-info-content: #ffffff;
@@ -45,28 +45,28 @@
     prefersdark: true;
     color-scheme: dark;
 
-    --color-base-100: #0f172a;
-    --color-base-200: #1e293b;
-    --color-base-300: #334155;
-    --color-base-content: #e2e8f0;
+    --color-base-100: #042f2e;
+    --color-base-200: #063a37;
+    --color-base-300: #0b4a45;
+    --color-base-content: #ccfbf1;
 
-    --color-primary: #818cf8;
-    --color-primary-content: #1e1b4b;
-    --color-secondary: #38bdf8;
-    --color-secondary-content: #082f49;
-    --color-accent: #fbbf24;
-    --color-accent-content: #1f2937;
-    --color-neutral: #1e1b4b;
-    --color-neutral-content: #eef2ff;
+    --color-primary: #2dd4bf;
+    --color-primary-content: #00201e;
+    --color-secondary: #5eead4;
+    --color-secondary-content: #042f2e;
+    --color-accent: #fb923c;
+    --color-accent-content: #000000;
+    --color-neutral: #134e4a;
+    --color-neutral-content: #ccfbf1;
 
     --color-info: #38bdf8;
-    --color-info-content: #082f49;
+    --color-info-content: #042f2e;
     --color-success: #4ade80;
-    --color-success-content: #052e16;
+    --color-success-content: #042f2e;
     --color-warning: #fbbf24;
-    --color-warning-content: #1f2937;
+    --color-warning-content: #042f2e;
     --color-error: #f87171;
-    --color-error-content: #450a0a;
+    --color-error-content: #042f2e;
 
     --radius-selector: 0.5rem;
     --radius-field: 0.5rem;
@@ -87,6 +87,10 @@
 
 @layer base {
     :root {
+        /* Reserve the scrollbar gutter so pages of different heights don't
+           shift horizontally when the vertical scrollbar appears/disappears.
+           Must target :root (not html) to match daisyUI's specificity.
+           overflow-y: scroll is the cross-browser fallback. */
         scrollbar-gutter: stable;
         overflow-y: scroll;
 
@@ -126,11 +130,6 @@
         transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
     }
 
-    /* Calendar event chips */
-    .calendar-event {
-        @apply block truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-tight;
-    }
-
     @media (prefers-reduced-motion: reduce) {
         *,
         *::before,
@@ -140,5 +139,12 @@
             animation-duration: 0.01ms !important;
             animation-iteration-count: 1 !important;
         }
+    }
+}
+
+@layer components {
+    /* Calendar event chips */
+    .calendar-event {
+        @apply block truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-tight;
     }
 }
