@@ -116,13 +116,13 @@ new #[Layout('layouts.app')] class extends Component
             return;
         }
 
-        $recurrence = $this->frequency === 'none' ? null : [
+        $recurrence = (! $this->booking?->exists && $this->frequency !== 'none') ? [
             'frequency' => $this->frequency,
             'interval' => $this->interval,
             'count' => $this->occurrences,
             'until' => $this->until ?: null,
             'days' => array_map('intval', $this->weeklyDays),
-        ];
+        ] : null;
 
         $attributes = [
             'title' => $validated['title'],
@@ -243,6 +243,7 @@ new #[Layout('layouts.app')] class extends Component
                         </div>
                     </div>
 
+                    @unless ($booking?->exists)
                     <div class="grid grid-cols-1 gap-4 border-t border-base-200 pt-4 sm:grid-cols-4">
                         <div>
                             <x-input-label for="frequency" :value="__('Repeat')" />
@@ -286,6 +287,9 @@ new #[Layout('layouts.app')] class extends Component
                             @endif
                         @endif
                     </div>
+                    @else
+                        <p class="border-t border-base-200 pt-4 text-xs text-base-content/50">{{ __('Recurrence cannot be changed after creation. Editing applies to this occurrence only.') }}</p>
+                    @endunless
                 </div>
 
                 <div class="card space-y-4 bg-base-100 p-6">

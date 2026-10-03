@@ -111,6 +111,10 @@ class BookingService
             $this->assertOccurrenceAvailable($resources, $start, $end, $booking->id);
 
             return DB::transaction(function () use ($booking, $attributes, $resources, $attendeeIds, $start, $end): Booking {
+                $existingStatuses = $booking->resources()->get()
+                    ->mapWithKeys(fn (Resource $resource): array => [$resource->id => $resource->pivot->status])
+                    ->all();
+
                 $booking->update([
                     'title' => $attributes['title'],
                     'purpose' => $attributes['purpose'] ?? null,
@@ -119,22 +123,30 @@ class BookingService
                     'ends_at' => $end,
                 ]);
 
-                $booking->resources()->detach();
-                $this->attachResources($booking, $resources);
+                // Preserve approval state for resources that stay on the booking;
+                // only newly added lines start as pending/not_required.
+                $booking->resources()->sync(
+                    $resources->mapWithKeys(function (Resource $resource) use ($existingStatuses): array {
+                        $status = $existingStatuses[$resource->id]
+                            ?? ($resource->approval_mode === ApprovalMode::None ? 'not_required' : 'pending');
+
+                        return [$resource->id => ['status' => $status]];
+                    })->all()
+                );
 
                 $booking->attendees()->delete();
                 $this->attachAttendees($booking, $booking->organiser, $attendeeIds);
 
-                $requiresApproval = $resources->contains(fn (Resource $resource): bool => $resource->requiresApproval());
+                $booking->refresh()->load('resources', 'attendees', 'organiser');
 
-                if ($requiresApproval && $booking->status === BookingStatus::Confirmed) {
+                // Only send an edited booking back to Pending if it is no longer
+                // fully approved (e.g. a new approval-required resource was added).
+                if ($booking->status === BookingStatus::Confirmed && ! $booking->isFullyApproved()) {
                     $booking->status = BookingStatus::Pending;
                     $booking->approved_at = null;
                     $booking->approved_by = null;
                     $booking->save();
                 }
-
-                $booking->refresh()->load('resources', 'attendees', 'organiser');
 
                 return $booking;
             });

@@ -181,6 +181,63 @@ class BookingApprovalTest extends TestCase
         $service->approve($booking->fresh(), $manager);
     }
 
+    public function test_editing_a_confirmed_booking_keeps_approved_lines(): void
+    {
+        $manager = User::factory()->resourceManager()->create();
+        $resource = $this->resource(ApprovalMode::Owner, $manager);
+        $organiser = User::factory()->user()->create();
+
+        $service = app(BookingService::class);
+        $booking = $service->create($organiser, [
+            'title' => 'Original',
+            'starts_at' => $start = Carbon::parse('next wednesday 09:00'),
+            'ends_at' => $start->copy()->addHour(),
+        ], [$resource->id]);
+
+        $service->approve($booking, $manager);
+        $this->assertSame(BookingStatus::Confirmed, $booking->fresh()->status);
+
+        $service->update($booking->fresh(), [
+            'title' => 'Renamed',
+            'starts_at' => $start,
+            'ends_at' => $start->copy()->addHour(),
+        ], [$resource->id]);
+
+        $booking->refresh();
+
+        $this->assertSame(BookingStatus::Confirmed, $booking->status);
+        $this->assertSame('approved', $booking->resources->first()->pivot->status);
+    }
+
+    public function test_adding_an_approval_required_resource_resets_to_pending(): void
+    {
+        $manager = User::factory()->resourceManager()->create();
+        $open = $this->resource(ApprovalMode::None);
+        $strict = $this->resource(ApprovalMode::Owner, $manager);
+        $organiser = User::factory()->user()->create();
+
+        $service = app(BookingService::class);
+        $booking = $service->create($organiser, [
+            'title' => 'Grows',
+            'starts_at' => $start = Carbon::parse('next wednesday 14:00'),
+            'ends_at' => $start->copy()->addHour(),
+        ], [$open->id]);
+
+        $this->assertSame(BookingStatus::Confirmed, $booking->status);
+
+        $service->update($booking, [
+            'title' => 'Grows',
+            'starts_at' => $start,
+            'ends_at' => $start->copy()->addHour(),
+        ], [$open->id, $strict->id]);
+
+        $booking->refresh();
+
+        $this->assertSame(BookingStatus::Pending, $booking->status);
+        $this->assertSame('pending', $booking->resources->firstWhere('id', $strict->id)->pivot->status);
+        $this->assertSame('not_required', $booking->resources->firstWhere('id', $open->id)->pivot->status);
+    }
+
     private function resource(ApprovalMode $mode, ?User $manager = null): Resource
     {
         return Resource::factory()->create([
