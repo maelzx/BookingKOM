@@ -29,6 +29,14 @@ use Illuminate\Support\Facades\Notification;
  */
 class BookingService
 {
+    /**
+     * How long a resource lock is held before it expires. This bounds the
+     * worst-case stall if a lock holder crashes mid-transaction, so it must be
+     * comfortably longer than a slow write but not so long that a crash blocks
+     * bookings for minutes.
+     */
+    private const LOCK_TTL_SECONDS = 30;
+
     public function __construct(
         private readonly BookingAvailability $availability,
         private readonly BookingStatusTransition $transitions,
@@ -365,7 +373,7 @@ class BookingService
         $ids = array_values(array_unique(array_map('intval', $resourceIds)));
         sort($ids);
 
-        $locks = array_map(fn (int $id) => Cache::lock('booking-resource-'.$id, 10), $ids);
+        $locks = array_map(fn (int $id) => Cache::lock('booking-resource-'.$id, self::LOCK_TTL_SECONDS), $ids);
         $acquired = [];
 
         try {
