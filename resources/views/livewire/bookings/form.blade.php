@@ -228,17 +228,17 @@ new #[Layout('layouts.app')] class extends Component
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <div>
                             <x-input-label for="date" :value="__('Date')" />
-                            <x-text-input wire:model.live="date" id="date" type="date" class="mt-1 block w-full" />
+                            <x-text-input wire:model.live.debounce.500ms="date" id="date" type="date" class="mt-1 block w-full" />
                             <x-input-error :messages="$errors->get('date')" class="mt-2" />
                         </div>
                         <div>
                             <x-input-label for="startTime" :value="__('Start')" />
-                            <x-text-input wire:model.live="startTime" id="startTime" type="time" class="mt-1 block w-full" />
+                            <x-text-input wire:model.live.debounce.500ms="startTime" id="startTime" type="time" class="mt-1 block w-full" />
                             <x-input-error :messages="$errors->get('startTime')" class="mt-2" />
                         </div>
                         <div>
                             <x-input-label for="endTime" :value="__('End')" />
-                            <x-text-input wire:model.live="endTime" id="endTime" type="time" class="mt-1 block w-full" />
+                            <x-text-input wire:model.live.debounce.500ms="endTime" id="endTime" type="time" class="mt-1 block w-full" />
                             <x-input-error :messages="$errors->get('endTime')" class="mt-2" />
                         </div>
                     </div>
@@ -301,7 +301,7 @@ new #[Layout('layouts.app')] class extends Component
                     <div class="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
                         @foreach ($resources as $resource)
                             <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-base-300 p-3 transition hover:border-primary/40 has-[:checked]:border-primary has-[:checked]:bg-primary/5" wire:key="resource-option-{{ $resource->id }}">
-                                <input type="checkbox" wire:model.live="resourceIds" value="{{ $resource->id }}" class="mt-0.5 rounded border-base-300 text-primary focus:ring-primary">
+                                <input type="checkbox" wire:model.live.debounce.500ms="resourceIds" value="{{ $resource->id }}" class="mt-0.5 rounded border-base-300 text-primary focus:ring-primary">
                                 <span class="min-w-0">
                                     <span class="block truncate text-sm font-medium text-base-content">{{ $resource->name }}</span>
                                     <span class="block truncate text-xs text-base-content/55">{{ $resource->type?->name ?? $resource->code }} · {{ $resource->location ?? '—' }}</span>

@@ -6,6 +6,7 @@ use App\Models\Resource;
 use App\Models\ResourceBlockedPeriod;
 use App\Services\BookingAvailability;
 use App\Support\ResourceQrCode;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -124,7 +125,11 @@ new #[Layout('layouts.app')] class extends Component
                 ->get(),
             'blockTypes' => BlockType::cases(),
             'attachments' => $this->resource->attachments()->with('uploader')->latest()->get(),
-            'qr' => ResourceQrCode::dataUri($this->resource, 320),
+            'qr' => Cache::remember(
+                'resource-qr:'.$this->resource->id,
+                now()->addDay(),
+                fn (): string => ResourceQrCode::dataUri($this->resource, 320),
+            ),
             'scanUrl' => route('scan.show', $this->resource->code),
         ];
     }
