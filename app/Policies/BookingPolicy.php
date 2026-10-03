@@ -13,17 +13,14 @@ class BookingPolicy
         return true;
     }
 
+    /**
+     * Any authenticated user may read a booking. Resource availability is
+     * shared, so the calendar must not show a booking it then refuses to open.
+     * Editing, cancelling and approving remain restricted below.
+     */
     public function view(User $user, Booking $booking): bool
     {
-        if ($booking->user_id === $user->id) {
-            return true;
-        }
-
-        if ($booking->attendees()->where('user_id', $user->id)->exists()) {
-            return true;
-        }
-
-        return $this->managesAnyResource($user, $booking);
+        return true;
     }
 
     public function create(User $user): bool

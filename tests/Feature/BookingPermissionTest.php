@@ -48,14 +48,14 @@ class BookingPermissionTest extends TestCase
         $this->assertTrue($attendee->can('view', $booking));
     }
 
-    public function test_resource_manager_can_view_bookings_for_their_resource(): void
+    public function test_any_authenticated_user_can_view_a_booking(): void
     {
         $manager = User::factory()->resourceManager()->create();
-        $other = User::factory()->resourceManager()->create();
+        $other = User::factory()->user()->create();
         $booking = $this->booking(User::factory()->user()->create(), $manager);
 
         $this->assertTrue($manager->can('view', $booking));
-        $this->assertFalse($other->can('view', $booking));
+        $this->assertTrue($other->can('view', $booking));
     }
 
     public function test_regular_user_cannot_approve_booking(): void
